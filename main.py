@@ -124,10 +124,10 @@ class MainScreen(Screen):
         self.toggleMagnet()
         sleep(1)
         print("Nice")
-        if (58.5/50)*.98<arm.get_position_in_units()<(58.5/50)*1.02:
-            arm.go_to_position(75/50)
+        if (57.5/50)*.98<arm.get_position_in_units()<(57.5/50)*1.02:
+            arm.go_to_position(74/50)
         else:
-            arm.go_to_position(58.5/50)
+            arm.go_to_position(57.5/50)
         sleep(1)
         self.toggleArm()
         self.toggleMagnet()
@@ -143,18 +143,18 @@ class MainScreen(Screen):
         arm.home(self.homeDirection)
         
     def isBallOnTallTower(self):
-        arm.go_to_position(75/50)
+        arm.go_to_position(74/50)
 
     def isBallOnShortTower(self):
         if cyprus.read_gpio() & 0b0010 == 0:
-            arm.go_to_position(58.5/50)
+            arm.go_to_position(57.5/50)
         else:
             self.isBallOnTallTower()
 
 
     def initialize(self):
         print("Home arm and turn off magnet")
-        arm.go_until_press(1, 6400)
+        arm.go_until_press(0, 4800)
 
     def resetColors(self):
         self.ids.armControl.color = YELLOW
