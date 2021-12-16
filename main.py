@@ -31,7 +31,6 @@ import RPi.GPIO as GPIO
 from pidev.stepper import stepper
 from pidev.Cyprus_Commands import Cyprus_Commands_RPi as cyprus
 
-
 # ////////////////////////////////////////////////////////////////
 # //                      GLOBAL VARIABLES                      //
 # //                         CONSTANTS                          //
@@ -52,13 +51,16 @@ DEBOUNCE = 0.10
 lowerTowerPosition = 60
 upperTowerPosition = 76
 
+cyprus.initialize()
+cyprus.setup_servo(2)
+cyprus.set_servo_position(2, .5)
+
 
 # ////////////////////////////////////////////////////////////////
 # //            DECLARE APP CLASS AND SCREENMANAGER             //
 # //                     LOAD KIVY FILE                         //
 # ////////////////////////////////////////////////////////////////
 class MyApp(App):
-
     def build(self):
         self.title = "Robotic Arm"
         return sm
@@ -73,7 +75,7 @@ cyprus.open_spi()
 # ////////////////////////////////////////////////////////////////
 
 sm = ScreenManager()
-arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_current=20, deaccel_current=20, steps_per_unit=200, speed=2)
+arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_current=20, deaccel_current=20, steps_per_unit=200, speed=1)
 
 
 # ////////////////////////////////////////////////////////////////
@@ -84,6 +86,7 @@ arm = stepper(port=0, micro_steps=32, hold_current=20, run_current=20, accel_cur
 class MainScreen(Screen):
     version = cyprus.read_firmware_version()
     armPosition = 0
+    magnet = 0
     lastClick = time.clock()
 
     def __init__(self, **kwargs):
@@ -100,27 +103,58 @@ class MainScreen(Screen):
 
     def toggleArm(self):
         print("Process arm movement here")
+        cyprus.set_pwm_values(1, period_value=100000, compare_value=100000, compare_mode=cyprus.LESS_THAN_OR_EQUAL)
+        sleep(2)
+        cyprus.set_pwm_values(1, period_value=100000, compare_value=0, compare_mode=cyprus.LESS_THAN_OR_EQUAL)
 
     def toggleMagnet(self):
         print("Process magnet here")
-        
-    def auto(self):
-        print("Run the arm automatically here")
+        if self.magnet == 0:
+            cyprus.set_servo_position(2, 1)
+            self.magnet = 1
+        else:
+            cyprus.set_servo_position(2, .5)
+            self.magnet = 0
 
-    def setArmPosition(self, position):
+    def auto(self):
+        self.initialize()
+        self.isBallOnShortTower()
+        sleep(1)
+        self.toggleArm()
+        self.toggleMagnet()
+        sleep(1)
+        print("Nice")
+        if (58.5/50)*.98<arm.get_position_in_units()<(58.5/50)*1.02:
+            arm.go_to_position(75/50)
+        else:
+            arm.go_to_position(58.5/50)
+        sleep(1)
+        self.toggleArm()
+        self.toggleMagnet()
+        sleep(1.5)
+        self.initialize()
+
+
+    def setArmPosition(self):
         print("Move arm here")
+        arm.go_to_position(self.moveArm.value/50)
 
     def homeArm(self):
         arm.home(self.homeDirection)
         
     def isBallOnTallTower(self):
-        print("Determine if ball is on the top tower")
+        arm.go_to_position(75/50)
 
     def isBallOnShortTower(self):
-        print("Determine if ball is on the bottom tower")
-        
+        if cyprus.read_gpio() & 0b0010 == 0:
+            arm.go_to_position(58.5/50)
+        else:
+            self.isBallOnTallTower()
+
+
     def initialize(self):
         print("Home arm and turn off magnet")
+        arm.go_until_press(1, 6400)
 
     def resetColors(self):
         self.ids.armControl.color = YELLOW
@@ -131,7 +165,6 @@ class MainScreen(Screen):
         MyApp().stop()
     
 sm.add_widget(MainScreen(name = 'main'))
-
 
 # ////////////////////////////////////////////////////////////////
 # //                          RUN APP                           //
